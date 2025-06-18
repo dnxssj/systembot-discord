@@ -1,0 +1,16 @@
+{
+  "name": "lasgordasruby_bot",
+  "version": "1.0.0",
+  "description": "Bot de utilidad para Discord",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "canvas": "^3.1.0",
+    "discord.js": "^14.11.0",
+    "dotenv": "^16.0.3",
+    "express": "^5.1.0"
+  }
+}

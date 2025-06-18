@@ -1,0 +1,16 @@
+{
+  "guildId": "845221969368842240",
+  "channelId": "1384911991532949717",
+  "colorRoles": {
+    "🔴": "rojo_coral",
+    "🟠": "naranja_dorado",
+    "🟣": "lila_vibrante",
+    "🔵": "celeste_pastel",
+    "🟢": "verde_menta",
+    "🌸": "rosa_pastel",
+    "⚫": "gris_carbon",
+    "🤍": "blanco",
+    "🟡": "amarillo_crema"
+  },
+  "colorMessageId": "1384939419538165791"
+}
