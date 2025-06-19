@@ -479,6 +479,48 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
     }).catch(() => message.channel.send('⏰ Tiempo agotado.'));
   }
 
+  if (message.content === '!fixrank') {
+  const userData = xpData[message.author.id];
+  const level = userData.level;
+  const rankRoles = {
+    10: 'Rango 1 ~ Ruby Scrapper',
+    50: 'Rango 2 ~ Passenger Level',
+    100: 'Rango 3 ~ Fausto 2.0',
+    200: 'Rango 4 ~ Un Darkblood',
+    300: 'Rango 5 ~ Jugador Regular',
+    400: 'Rango 6 ~ Jugador Playmaker',
+    500: 'Rango 7 ~ Jugador Destacado',
+    600: 'Rango 8 ~ Jugador Experto',
+    800: 'Rango 9 ~ Campeón de Ruby',
+    1000: 'Rango 10 ~ Leyenda de Ruby',
+    5000: 'YAPPER',
+    10000: 'GOAT'
+  };
+
+  const getRankName = lvl => {
+    return Object.entries(rankRoles).reverse().find(([l]) => lvl >= l)?.[1] || null;
+  };
+
+  const rankName = getRankName(level);
+  if (rankName) {
+    const member = message.member;
+    for (const r of Object.values(rankRoles)) {
+      const role = message.guild.roles.cache.find(ro => ro.name === r);
+      if (role && member.roles.cache.has(role.id)) await member.roles.remove(role);
+    }
+
+    const newRole = message.guild.roles.cache.find(r => r.name === rankName);
+    if (newRole) {
+      await member.roles.add(newRole);
+      userData.lastRank = rankName;
+      fs.writeFileSync(xpFile, JSON.stringify(xpData, null, 2));
+      return message.reply(`🎖 Se te ha asignado el rol: **${rankName}**`);
+    } else {
+      return message.reply('⚠️ No se encontró el rol correspondiente en el servidor.');
+    }
+  }
+}
+
 
   //For boosters only
   if (message.content === '!booster') {
