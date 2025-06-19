@@ -15,6 +15,14 @@ const parejasFile = './parejas.json';
 let parejasData = fs.existsSync(parejasFile) ? JSON.parse(fs.readFileSync(parejasFile)) : {};
 const amistadesFile = './amistades.json';
 let amistadesData = fs.existsSync(amistadesFile) ? JSON.parse(fs.readFileSync(amistadesFile)) : {};
+const monedasFile = './monedas.json';
+let monedas = {};
+try {
+  monedas = JSON.parse(fs.readFileSync(monedasFile));
+} catch (err) {
+  console.error('No se pudo cargar monedas.json:', err);
+}
+
 
 const getRequiredXp = lvl => Math.floor(Math.pow((lvl + 1) / 0.1, 2));
 
@@ -96,11 +104,11 @@ client.on('messageCreate', async message => {
   \`!rank\` → Muestra tu nivel y XP  
   \`!me\` → Muestra tu perfil visual  
   \`!relacion\` → Muestra tu pareja y tu mejor amig@
+  \`!tienda\` → Muestra la tienda del servidor, en la que puedes adquirir efectos y títulos para tu perfil
   
   **Server Booster**
   \`!booster\` → Agradecimiento especial a boosters  
-  \`!claim\` → Reclama XP diario (solo boosters)  
-
+  \`!claim\` → Reclama XP y monedas diariamente (solo boosters)  
   **Relaciones**
   \`!marryme @usuario\` → Solicitar relación  
   \`!divorce\` → Pedir divorcio  
@@ -143,6 +151,132 @@ client.on('messageCreate', async message => {
       message.reply('❌ No pude enviarte el mensaje privado. ¿Tienes los DMs desactivados?');
     }
   }
+
+const tienda = require('./tienda.json');
+const ITEMS_PER_PAGE = 4;
+
+if (message.content.startsWith('!tienda')) {
+  const args = message.content.split(' ');
+  const page = parseInt(args[1]) || 1;
+  const start = (page - 1) * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+  const totalPages = Math.ceil(tienda.items.length / ITEMS_PER_PAGE);
+
+  const boosterRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes('booster'));
+  const isBooster = boosterRole && message.member.roles.cache.has(boosterRole.id);
+
+  const itemsToShow = tienda.items.slice(start, end);
+
+  if (itemsToShow.length === 0) return message.reply('📦 No hay ítems en esta página.');
+
+  const embed = new EmbedBuilder()
+    .setTitle('🛒 Tienda del Servidor')
+    .setColor(0x00bfff)
+    .setFooter({ text: `Página ${page} de ${totalPages}` });
+
+  for (const item of itemsToShow) {
+    let rareColor = {
+      "común": '🟢',
+      "raro": '🔵',
+      "épico": '🟣',
+      "legendario": '🟠'
+    }[item.rareza.toLowerCase()] || '⚪';
+
+    let linea = `**${rareColor} ${item.nombre}**\n💰 Precio: ${item.precio} monedas\n📦 Tipo: ${item.tipo}`;
+    if (item.boosterOnly) linea += '\n🔒 Exclusivo para boosters';
+
+    embed.addFields({ name: '\u200b', value: linea });
+  }
+
+  message.channel.send({ embeds: [embed] });
+}
+
+
+  if (message.content.startsWith('!buy')) {
+  const args = message.content.split(' ');
+  const idItem = args[1];
+
+  if (!idItem) return message.reply('❗ Especifica el ID del objeto.');
+
+  const tienda = JSON.parse(fs.readFileSync('./tienda.json', 'utf8'));
+  const monedas = JSON.parse(fs.readFileSync('./monedas.json', 'utf8'));
+  const inventario = JSON.parse(fs.readFileSync('./inventario.json', 'utf8'));
+
+  const userId = message.author.id;
+  const item = tienda[idItem];
+  if (!item) return message.reply('❌ Ese objeto no existe en la tienda.');
+
+  if (!monedas[userId] || monedas[userId] < item.precio)
+    return message.reply('🚫 No tienes suficientes monedas.');
+
+  if (!inventario[userId]) inventario[userId] = [];
+  if (inventario[userId].includes(idItem))
+    return message.reply('⚠️ Ya tienes este objeto.');
+
+  monedas[userId] -= item.precio;
+  inventario[userId].push(idItem);
+
+  fs.writeFileSync('./monedas.json', JSON.stringify(monedas, null, 2));
+  fs.writeFileSync('./inventario.json', JSON.stringify(inventario, null, 2));
+
+  message.reply(`✅ Has comprado **${item.nombre}** por ${item.precio} monedas.`);
+  }
+
+  if (message.content.startsWith('!inv')) {
+    const target = message.mentions.users.first() || message.author;
+    const targetId = target.id;
+
+    const datosInventario = JSON.parse(fs.readFileSync('./inventario.json', 'utf-8'));
+    const inventario = datosInventario[targetId];
+
+    if (!inventario || (!inventario.efectos?.length && !inventario.titulos?.length)) {
+      return message.reply(`🧺 ${target.username} no tiene ítems en su inventario.`);
+    }
+
+    const efectos = inventario.efectos?.length ? inventario.efectos.map(e => `✨ ${e}`).join('\n') : 'Ninguno';
+    const titulos = inventario.titulos?.length ? inventario.titulos.map(t => `🏷️ ${t}`).join('\n') : 'Ninguno';
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🎒 Inventario de ${target.username}`)
+      .setColor(0x00bfff)
+      .addFields(
+        { name: '🎨 Efectos visuales', value: efectos, inline: false },
+        { name: '🏷️ Títulos', value: titulos, inline: false }
+      )
+      .setFooter({ text: `Usa !me para mostrar tus ítems activos.` });
+
+    await message.reply({ embeds: [embed] });
+  }
+
+  if (message.content.startsWith('!equipar')) {
+  const args = message.content.split(' ');
+  const tipo = args[1]?.toLowerCase();
+  const nombre = args.slice(2).join(' ');
+
+  if (!['titulo', 'efecto'].includes(tipo)) {
+    return message.reply('❌ Usa el comando así: `!equipar titulo NOMBRE` o `!equipar efecto NOMBRE`.');
+  }
+
+  if (!nombre) {
+    return message.reply('❌ Debes especificar el nombre del ítem que quieres equipar.');
+  }
+
+  const userId = message.author.id;
+  const inventario = JSON.parse(fs.readFileSync('./inventario.json', 'utf-8'));
+  const equipados = JSON.parse(fs.readFileSync('./equipados.json', 'utf-8'));
+
+  const userInv = inventario[userId];
+  if (!userInv || !userInv[`${tipo}s`] || !userInv[`${tipo}s`].includes(nombre)) {
+    return message.reply(`❌ No tienes ese ${tipo} en tu inventario.`);
+  }
+
+  if (!equipados[userId]) equipados[userId] = {};
+  equipados[userId][tipo] = nombre;
+
+  fs.writeFileSync('./equipados.json', JSON.stringify(equipados, null, 2));
+  message.reply(`✅ Has equipado el ${tipo} **${nombre}**.`);
+  }
+
 
 
   
@@ -223,6 +357,10 @@ ctx.drawImage(fondo, 0, 0, canvas.width, canvas.height);
   }
 
   const avatar = await loadImage(targetUser.displayAvatarURL({ extension: 'png', forceStatic: true, size: 128 }));
+  const equipados = JSON.parse(fs.readFileSync('./equipados.json', 'utf-8'));
+  const equipado = equipados[targetId] || {};
+  const tituloEquipado = equipado.titulo || 'Sin título';
+  const efectoEquipado = equipado.efecto || 'Sin efecto';
 
 
   ctx.save();
@@ -252,12 +390,17 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
   ctx.fillText(displayName, cx, 210);
 
   ctx.font = '22px Roboto';
-  ctx.fillText(`Nivel: ${userData.level}`, cx, 250);
-  ctx.fillText(`XP: ${userData.xp}`, cx, 280);
+  ctx.fillText(`🎖️ ${tituloEquipado}`, cx, 250);
+  ctx.fillText(`💫 Efecto: ${efectoEquipado}`, cx, 280);
+  ctx.fillText(`Nivel: ${userData.level}`, cx, 310);
+  ctx.fillText(`XP: ${userData.xp}`, cx, 340);
+  ctx.fillText(`Monedas: ${monedas[targetId] || 0}`, cx, 370);
 
   ctx.font = 'bold 22px Roboto';
-  ctx.fillText(`Relación: ${pareja}`, cx, 320);
-  ctx.fillText(`Mejor amig@: ${bff}`, cx, 350);
+  ctx.fillText(`Relación: ${pareja}`, cx, 410);
+  ctx.fillText(`Mejor amig@: ${bff}`, cx, 440);
+
+
 
   const barWidth = 300;
   const barHeight = 24;
@@ -346,6 +489,12 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
 
 
   if (message.content.startsWith('!marryme')) {
+    const boosterRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes('booster'));
+    const isBooster = boosterRole && message.member.roles.cache.has(boosterRole.id);
+
+    if (!isBooster) {
+      return message.reply('🚫 Este comando es exclusivo para boosters del servidor.');
+    }
     const target = message.mentions.users.first();
     if (!target || target.bot || target.id === message.author.id) {
       return message.reply('❗ Menciona a una persona válida para casarte.');
@@ -390,6 +539,13 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
     }).catch(() => message.channel.send('⏰ Tiempo agotado.'));
   }
   if (message.content === '!divorce') {
+    const boosterRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes('booster'));
+    const isBooster = boosterRole && message.member.roles.cache.has(boosterRole.id);
+
+    if (!isBooster) {
+      return message.reply('🚫 Este comando es exclusivo para boosters del servidor.');
+    }
+
     const parejaId = parejasData[message.author.id];
     if (!parejaId) {
       return message.reply('❌ No estás en pareja actualmente.');
@@ -438,6 +594,13 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
 
   // Amistades
   if (message.content.startsWith('!bffme')) {
+    const boosterRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes('booster'));
+    const isBooster = boosterRole && message.member.roles.cache.has(boosterRole.id);
+
+    if (!isBooster) {
+      return message.reply('🚫 Este comando es exclusivo para boosters del servidor.');
+    }
+
     const target = message.mentions.users.first();
     if (!target || target.bot || target.id === message.author.id) {
       return message.reply('❗ Menciona a una persona válida para ser mejores amig@s.');
@@ -557,6 +720,8 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
     }
 
     const xpAmount = 150;
+    const rewardCoins = 25;
+
     userData.xp += xpAmount;
     userData.lastClaim = now;
     fs.writeFileSync(xpFile, JSON.stringify(xpData, null, 2));
@@ -564,11 +729,12 @@ if (boosterRole && member.roles.cache.has(boosterRole.id)) {
     const embed = new EmbedBuilder()
       .setTitle('🎉 ¡Recompensa reclamada!')
       .setColor(0x7d3cff)
-      .setDescription(`Has reclamado **+${xpAmount} XP** por ser booster del servidor.\n¡Gracias por tu apoyo, ${message.member.displayName}!`)
+      .setDescription(`Has reclamado **+${xpAmount} XP** y **+${rewardCoins} monedas** por ser booster del servidor.\n¡Gracias por tu apoyo, ${message.member.displayName}!`)
       .setThumbnail(message.author.displayAvatarURL({ dynamic: true }));
 
     message.channel.send({ embeds: [embed] });
   }
+
 
 
 if (!message.content.startsWith('!')) {
@@ -577,6 +743,10 @@ if (!message.content.startsWith('!')) {
   const userXp = xpData[authorId];
 
   userXp.xp += Math.floor(Math.random() * 10) + 5;
+  monedas[authorId] = (monedas[authorId] || 0) + 5;
+  cooldownMonedas.add(authorId);
+  setTimeout(() => cooldownMonedas.delete(authorId), 5000);
+
 
   const level = Math.floor(0.1 * Math.sqrt(userXp.xp));
   const getRequiredXp = lvl => Math.floor(Math.pow((lvl + 1) / 0.1, 2));
@@ -602,6 +772,7 @@ if (!message.content.startsWith('!')) {
     }
   }
   fs.writeFileSync(xpFile, JSON.stringify(xpData, null, 2));
+  fs.writeFileSync(monedasFile, JSON.stringify(monedas, null, 2));
 }
   
 });

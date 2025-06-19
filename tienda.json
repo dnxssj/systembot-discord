@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "id": "efecto_aurora",
+      "nombre": "Aurora Boreal",
+      "tipo": "efecto",
+      "rareza": "épico",
+      "precio": 250,
+      "boosterOnly": true
+    },
+    {
+      "id": "efecto_fuego",
+      "nombre": "Llamas Eternas",
+      "tipo": "efecto",
+      "rareza": "raro",
+      "precio": 180,
+      "boosterOnly": true
+    },
+    {
+      "id": "efecto_chispas",
+      "nombre": "Chispas Eléctricas",
+      "tipo": "efecto",
+      "rareza": "común",
+      "precio": 100,
+      "boosterOnly": true
+    },
+    {
+      "id": "titulo_mvp",
+      "nombre": "MVP",
+      "tipo": "título",
+      "rareza": "legendario",
+      "precio": 600,
+      "boosterOnly": true
+    },
+    {
+      "id": "titulo_jogabonito",
+      "nombre": "Joga Bonito",
+      "tipo": "título",
+      "rareza": "raro",
+      "precio": 150,
+      "boosterOnly": false
+    },
+    {
+      "id": "titulo_cheater",
+      "nombre": "Chiterito",
+      "tipo": "título",
+      "rareza": "épico",
+      "precio": 350,
+      "boosterOnly": false
+    }
+  ]
+}
